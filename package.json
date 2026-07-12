@@ -1,0 +1,150 @@
+{
+  "name": "codecaptions",
+  "displayName": "CodeCaptions",
+  "description": "Closed captions for AI coding assistants. Live subtitles from code changes.",
+  "version": "0.1.0",
+  "publisher": "codecaptions",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other", "AI"],
+  "icon": "icon.png",
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codecaptions.toggle",
+        "title": "CC: Toggle Live Captions",
+        "category": "CodeCaptions"
+      },
+      {
+        "command": "codecaptions.showHistory",
+        "title": "CC: Show Caption History",
+        "category": "CodeCaptions"
+      },
+      {
+        "command": "codecaptions.clearHistory",
+        "title": "CC: Clear Caption History",
+        "category": "CodeCaptions"
+      },
+      {
+        "command": "codecaptions.openSettings",
+        "title": "CC: Open Settings",
+        "category": "CodeCaptions"
+      },
+      {
+        "command": "codecaptions.cc",
+        "title": "CC ▼",
+        "category": "CodeCaptions"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codecaptions-sidebar",
+          "title": "CodeCaptions",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
+    "views": {
+      "codecaptions-sidebar": [
+        {
+          "type": "webview",
+          "id": "codecaptionsHistory",
+          "name": "Live Captions"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CodeCaptions",
+      "properties": {
+        "codecaptions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable live captions."
+        },
+        "codecaptions.provider": {
+          "type": "string",
+          "enum": ["gemini", "claude", "openai", "ollama"],
+          "default": "gemini",
+          "description": "AI provider for summarization."
+        },
+        "codecaptions.geminiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Google Gemini API key."
+        },
+        "codecaptions.geminiModel": {
+          "type": "string",
+          "default": "gemini-1.5-flash",
+          "description": "Gemini model name."
+        },
+        "codecaptions.claudeApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic Claude API key."
+        },
+        "codecaptions.claudeModel": {
+          "type": "string",
+          "default": "claude-haiku-20240307",
+          "description": "Claude model name."
+        },
+        "codecaptions.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API key."
+        },
+        "codecaptions.openaiModel": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "OpenAI model name."
+        },
+        "codecaptions.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama base URL."
+        },
+        "codecaptions.ollamaModel": {
+          "type": "string",
+          "default": "qwen2.5-coder",
+          "description": "Ollama model name."
+        },
+        "codecaptions.debounceMs": {
+          "type": "number",
+          "default": 1500,
+          "description": "Debounce delay in milliseconds before processing a change."
+        },
+        "codecaptions.maxHistoryItems": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of caption history entries to keep."
+        },
+        "codecaptions.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show subtitle in the status bar."
+        },
+        "codecaptions.autoHide": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-hide caption in status bar after 8 seconds."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "node esbuild.js --watch",
+    "build": "node esbuild.js",
+    "package": "npx @vscode/vsce package",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}

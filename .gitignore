@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.vsix
+.vscode-test/
+out/
+*.js.map
+task.md
+codecaptions_ide_prompt.md
