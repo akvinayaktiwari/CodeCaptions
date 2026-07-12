@@ -6,6 +6,50 @@ import { HistoryViewProvider } from './historyView';
 
 let outputChannel: vscode.OutputChannel;
 let autoHideTimer: ReturnType<typeof setTimeout> | undefined;
+let activeSubtitleDecoration: vscode.TextEditorDecorationType | undefined;
+let subtitleClearTimer: ReturnType<typeof setTimeout> | undefined;
+
+function showFloatingSubtitle(caption: string) {
+  const activeEditor = vscode.window.activeTextEditor;
+  if (!activeEditor) return;
+
+  // Clear previous decoration
+  if (activeSubtitleDecoration) {
+    activeSubtitleDecoration.dispose();
+  }
+  if (subtitleClearTimer) {
+    clearTimeout(subtitleClearTimer);
+  }
+
+  // Create a stylish, premium floating pill decoration
+  activeSubtitleDecoration = vscode.window.createTextEditorDecorationType({
+    borderRadius: '6px',
+    after: {
+      contentText: ` 🎬 ${caption} `,
+      color: '#e2e8f0',
+      backgroundColor: '#1e1b4b', // Deep indigo base
+      border: '1px solid #6366f1', // Indigo border
+      margin: '0 0 0 24px',
+      fontWeight: '600',
+      fontStyle: 'normal',
+    }
+  });
+
+  const cursorPosition = activeEditor.selection.active;
+  const lineLength = activeEditor.document.lineAt(cursorPosition.line).text.length;
+  const targetPosition = new vscode.Position(cursorPosition.line, lineLength);
+  const range = new vscode.Range(targetPosition, targetPosition);
+
+  activeEditor.setDecorations(activeSubtitleDecoration, [range]);
+
+  // Auto-hide after 6 seconds
+  subtitleClearTimer = setTimeout(() => {
+    if (activeSubtitleDecoration) {
+      activeSubtitleDecoration.dispose();
+      activeSubtitleDecoration = undefined;
+    }
+  }, 6000);
+}
 
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('CodeCaptions');
@@ -77,6 +121,8 @@ export function activate(context: vscode.ExtensionContext) {
         historyView.update(caption, change.filename);
         // Show as a transient toast on screen
         vscode.window.showInformationMessage(`🎬 CC: ${caption} (${change.filename})`);
+        // Show as a floating inline subtitle decoration on screen
+        showFloatingSubtitle(caption);
       }
     } catch (err) {
       // Swallow silently — never crash the host
