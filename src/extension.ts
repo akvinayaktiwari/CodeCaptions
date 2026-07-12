@@ -42,8 +42,16 @@ export function activate(context: vscode.ExtensionContext) {
   const diffEngine = new DiffEngine(context, async (change) => {
     try {
       outputChannel.appendLine(`[Extension] Processing diff for: ${change.filename}`);
+
+      // Signal webview immediately so the processing bar animates
+      historyView.signalProcessing();
+      statusBar.text = '$(comment-discussion) CC: Analyzing…';
+
       const caption = await summarizer.summarize(change);
-      if (!caption) return;
+      if (!caption) {
+        statusBar.text = '$(comment-discussion) CC: Ready';
+        return;
+      }
 
       outputChannel.appendLine(`[Extension] Caption: "${caption}"`);
 

@@ -76,6 +76,12 @@ export class HistoryViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
+  signalProcessing() {
+    if (!this.view) return;
+    this.view.webview.postMessage({ type: 'processing' });
+  }
+
+
   private getHtml(): string {
     return `<!DOCTYPE html>
 <html lang="en">
@@ -85,32 +91,33 @@ export class HistoryViewProvider implements vscode.WebviewViewProvider {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline';" />
   <title>CodeCaptions</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0d0d0f;
-      --bg-card: rgba(255, 255, 255, 0.04);
-      --border: rgba(255, 255, 255, 0.08);
-      --border-hover: rgba(255, 255, 255, 0.15);
-      --accent-from: #7c3aed;
-      --accent-to: #4f46e5;
-      --accent-gradient: linear-gradient(135deg, var(--accent-from), var(--accent-to));
-      --text-primary: #e2e8f0;
-      --text-muted: #64748b;
-      --text-dim: #475569;
-      --live-red: #ef4444;
-      --radius-card: 12px;
-      --radius-tag: 8px;
+      --bg: #080810;
+      --bg-card: rgba(255,255,255,0.035);
+      --bg-card-hover: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.16);
+      --accent: #7c3aed;
+      --accent2: #4f46e5;
+      --accent3: #06b6d4;
+      --accent-glow: rgba(124,58,237,0.35);
+      --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #4f46e5 60%, #06b6d4 100%);
+      --text-primary: #f0f4ff;
+      --text-secondary: #94a3b8;
+      --text-muted: #475569;
+      --live-red: #f43f5e;
+      --live-glow: rgba(244,63,94,0.4);
+      --r-card: 14px;
+      --r-pill: 100px;
+      --r-tag: 8px;
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text-primary);
       min-height: 100vh;
@@ -119,554 +126,663 @@ export class HistoryViewProvider implements vscode.WebviewViewProvider {
       line-height: 1.5;
     }
 
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 4px; }
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.5); }
 
-    /* ─── HEADER ─── */
+    /* ── AMBIENT GLOW BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -60px; left: -60px;
+      width: 240px; height: 240px;
+      background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      animation: drift 8s ease-in-out infinite alternate;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -40px; right: -40px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      animation: drift 10s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(20px,15px) scale(1.1); }
+    }
+
+    /* ── HEADER ── */
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 16px 12px;
-      background: rgba(13,13,15,0.8);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      padding: 13px 16px 11px;
+      background: rgba(8,8,16,0.85);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
       border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      position: sticky; top: 0; z-index: 20;
     }
 
-    .header-logo {
+    .logo {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .header-logo .logo-icon {
-      font-size: 18px;
-      line-height: 1;
+    .logo-icon-wrap {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: var(--accent-gradient);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      box-shadow: 0 0 16px var(--accent-glow);
+      flex-shrink: 0;
     }
 
-    .header-logo .logo-text {
+    .logo-text {
       font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-      letter-spacing: -0.02em;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
+    /* ── LIVE BADGE ── */
     .live-badge {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 8px;
-      border-radius: 100px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      transition: all 0.3s ease;
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 9px;
+      border-radius: var(--r-pill);
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
     }
-
     .live-badge.live {
-      background: rgba(239, 68, 68, 0.15);
+      background: rgba(244,63,94,0.12);
       color: var(--live-red);
-      border: 1px solid rgba(239, 68, 68, 0.25);
+      border: 1px solid rgba(244,63,94,0.3);
+      box-shadow: 0 0 12px rgba(244,63,94,0.15);
     }
-
     .live-badge.paused {
-      background: rgba(100, 116, 139, 0.15);
+      background: rgba(71,85,105,0.12);
       color: var(--text-muted);
-      border: 1px solid rgba(100, 116, 139, 0.2);
+      border: 1px solid rgba(71,85,105,0.2);
+      box-shadow: none;
     }
-
     .pulse-dot {
-      width: 6px;
-      height: 6px;
+      width: 6px; height: 6px;
       border-radius: 50%;
       background: currentColor;
+      flex-shrink: 0;
     }
-
     .live .pulse-dot {
-      animation: pulse 1.5s ease-in-out infinite;
+      animation: livePulse 1.4s ease-in-out infinite;
+      box-shadow: 0 0 6px currentColor;
+    }
+    @keyframes livePulse {
+      0%,100% { opacity:1; transform: scale(1); }
+      50%      { opacity:0.3; transform: scale(0.6); }
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.7); }
-    }
-
-    /* ─── CURRENT CAPTION CARD ─── */
-    .current-caption-section {
-      padding: 14px 16px 0;
-    }
+    /* ── CAPTION CARD ── */
+    .caption-section { padding: 14px 14px 0; }
 
     .caption-card {
       position: relative;
       background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      padding: 14px 16px 14px 20px;
+      border-radius: var(--r-card);
+      padding: 16px 16px 14px 20px;
       overflow: hidden;
-      transition: all 0.3s ease;
+      border: 1px solid var(--border);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .caption-card.has-caption {
+      border-color: rgba(124,58,237,0.25);
+      box-shadow: 0 0 24px rgba(124,58,237,0.1), inset 0 0 24px rgba(124,58,237,0.03);
     }
 
+    /* gradient left accent bar */
     .caption-card::before {
       content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 4px;
+      position: absolute; left:0; top:0; bottom:0; width:4px;
       background: var(--accent-gradient);
       border-radius: 3px 0 0 3px;
+      transition: opacity 0.3s ease;
+    }
+
+    /* shimmer sweep on new caption */
+    .caption-card::after {
+      content: '';
+      position: absolute; top:0; left:-100%; width:60%; height:100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+      pointer-events: none;
+    }
+    .caption-card.shimmer::after {
+      animation: shimmer 0.7s ease-out forwards;
+    }
+    @keyframes shimmer {
+      from { left: -100%; }
+      to   { left: 150%; }
     }
 
     .caption-card.animate-in {
-      animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: captionIn 0.4s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes captionIn {
+      from { opacity:0; transform: translateY(-10px) scale(0.98); }
+      to   { opacity:1; transform: translateY(0) scale(1); }
     }
 
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-8px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .caption-text {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-      letter-spacing: -0.02em;
-      line-height: 1.3;
+    .caption-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
       margin-bottom: 6px;
     }
 
-    .caption-text.empty {
-      font-size: 13px;
-      font-weight: 400;
-      color: var(--text-muted);
-      font-style: italic;
+    .caption-text {
+      font-size: 15px; font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.025em;
+      line-height: 1.35;
+      margin-bottom: 8px;
+      min-height: 22px;
     }
+    .caption-text.empty {
+      font-size: 13px; font-weight: 400;
+      color: var(--text-muted); font-style: italic;
+    }
+
+    /* typewriter cursor */
+    .caption-text .cursor {
+      display: inline-block;
+      width: 2px; height: 1em;
+      background: var(--accent);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 0.9s step-end infinite;
+      border-radius: 1px;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
     .caption-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      display: flex; align-items: center; gap: 8px;
+      flex-wrap: wrap;
     }
-
     .caption-filename {
-      font-size: 11px;
-      color: var(--text-muted);
+      font-size: 10px; color: var(--text-secondary);
       font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 160px;
-    }
-
-    .caption-time {
-      font-size: 11px;
-      color: var(--text-dim);
-      flex-shrink: 0;
-    }
-
-    /* ─── CC CONTROLS ─── */
-    .controls-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 12px 16px;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 10px;
-      border-radius: 100px;
+      background: rgba(255,255,255,0.05);
       border: 1px solid var(--border);
-      background: var(--bg-card);
-      color: var(--text-muted);
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: inherit;
-      white-space: nowrap;
+      padding: 1px 7px; border-radius: var(--r-tag);
+      max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .caption-time {
+      font-size: 10px; color: var(--text-muted);
+      margin-left: auto;
     }
 
-    .btn:hover {
-      border-color: var(--border-hover);
-      color: var(--text-primary);
-      background: rgba(255,255,255,0.07);
-      box-shadow: 0 0 12px rgba(124, 58, 237, 0.15);
+    /* ── STATS ROW ── */
+    .stats-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 14px 0;
     }
-
-    .btn:active {
-      transform: scale(0.96);
+    .stat-chip {
+      display: flex; align-items: center; gap: 4px;
+      padding: 3px 9px; border-radius: var(--r-pill);
+      background: var(--bg-card); border: 1px solid var(--border);
+      font-size: 10px; color: var(--text-muted);
     }
-
-    .btn-primary {
-      background: rgba(124, 58, 237, 0.15);
-      border-color: rgba(124, 58, 237, 0.3);
+    .stat-chip .stat-val {
+      font-weight: 600; color: var(--text-secondary);
+    }
+    .stat-chip-accent {
+      background: rgba(124,58,237,0.08);
+      border-color: rgba(124,58,237,0.18);
+    }
+    .stat-chip-accent .stat-val {
       color: #a78bfa;
     }
 
-    .btn-primary:hover {
-      background: rgba(124, 58, 237, 0.25);
-      border-color: rgba(124, 58, 237, 0.5);
-      color: #c4b5fd;
-      box-shadow: 0 0 16px rgba(124, 58, 237, 0.3);
+    /* ── CONTROLS ── */
+    .controls-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 12px 14px;
     }
-
-    .btn-danger:hover {
-      border-color: rgba(239, 68, 68, 0.4);
-      color: #fca5a5;
-      box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
-    }
-
-    /* ─── HISTORY SECTION ─── */
-    .history-section {
-      padding: 0 16px 16px;
-    }
-
-    .history-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-
-    .history-title {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-    }
-
-    .count-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1px 6px;
-      border-radius: 100px;
-      background: rgba(255,255,255,0.06);
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px; border-radius: var(--r-pill);
       border: 1px solid var(--border);
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-dim);
-      min-width: 20px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 11px; font-weight: 500;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      font-family: inherit; white-space: nowrap;
+      position: relative; overflow: hidden;
     }
+    .btn::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: var(--accent-gradient);
+      opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+    .btn span { position: relative; z-index: 1; }
+    .btn:hover {
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .btn:active { transform: translateY(0) scale(0.97); }
 
+    .btn-primary {
+      background: rgba(124,58,237,0.14);
+      border-color: rgba(124,58,237,0.35);
+      color: #a78bfa;
+    }
+    .btn-primary:hover {
+      background: rgba(124,58,237,0.24);
+      border-color: rgba(124,58,237,0.55);
+      color: #c4b5fd;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.3);
+    }
+    .btn-danger:hover {
+      border-color: rgba(244,63,94,0.4);
+      color: #fda4af;
+      box-shadow: 0 4px 16px rgba(244,63,94,0.2);
+    }
+    .btn-icon { flex-shrink: 0; }
+
+    /* ── DIVIDER ── */
     .divider {
       height: 1px;
-      background: var(--border);
-      margin: 0 16px 14px;
+      margin: 0 14px 12px;
+      background: linear-gradient(90deg, transparent, var(--border) 30%, var(--border) 70%, transparent);
     }
 
-    .history-list {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    /* ── HISTORY ── */
+    .history-section { padding: 0 14px 16px; }
+
+    .history-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px;
     }
+    .history-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+    .count-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 1px 6px; border-radius: var(--r-pill);
+      background: rgba(124,58,237,0.1);
+      border: 1px solid rgba(124,58,237,0.2);
+      font-size: 10px; font-weight: 700;
+      color: #a78bfa; min-width: 22px;
+      transition: all 0.3s ease;
+    }
+
+    .history-list { display: flex; flex-direction: column; gap: 3px; }
 
     .history-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      display: flex; align-items: center; gap: 8px;
       padding: 7px 10px;
-      border-radius: var(--radius-tag);
+      border-radius: var(--r-tag);
       border: 1px solid transparent;
-      transition: all 0.2s ease;
-      animation: fadeInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: default;
+      transition: all 0.15s ease;
+      animation: itemIn 0.35s cubic-bezier(0.16,1,0.3,1) both;
     }
-
-    @keyframes fadeInLeft {
-      from {
-        opacity: 0;
-        transform: translateX(-12px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
+    @keyframes itemIn {
+      from { opacity:0; transform: translateX(-10px); }
+      to   { opacity:1; transform: translateX(0); }
     }
-
     .history-item:hover {
-      background: var(--bg-card);
+      background: var(--bg-card-hover);
       border-color: var(--border);
+    }
+    .history-item:first-child .time-pill {
+      background: rgba(124,58,237,0.2);
+      border-color: rgba(124,58,237,0.4);
+      color: #c4b5fd;
     }
 
     .time-pill {
       flex-shrink: 0;
-      padding: 2px 7px;
-      border-radius: 100px;
-      background: rgba(124, 58, 237, 0.12);
-      border: 1px solid rgba(124, 58, 237, 0.2);
+      padding: 2px 7px; border-radius: var(--r-pill);
+      background: rgba(124,58,237,0.08);
+      border: 1px solid rgba(124,58,237,0.15);
       color: #a78bfa;
-      font-size: 10px;
-      font-weight: 600;
-      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-      min-width: 42px;
-      text-align: center;
+      font-size: 9px; font-weight: 700;
+      font-family: 'SF Mono','Monaco','Consolas',monospace;
+      min-width: 40px; text-align: center;
     }
-
     .item-caption {
-      flex: 1;
-      font-size: 12px;
+      flex: 1; font-size: 12px; font-weight: 500;
       color: var(--text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-
     .file-badge {
       flex-shrink: 0;
-      padding: 2px 7px;
-      border-radius: var(--radius-tag);
-      background: rgba(255,255,255,0.05);
+      padding: 2px 7px; border-radius: var(--r-tag);
+      background: rgba(255,255,255,0.04);
       border: 1px solid var(--border);
       color: var(--text-muted);
-      font-size: 10px;
-      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-      max-width: 80px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 9px;
+      font-family: 'SF Mono','Monaco','Consolas',monospace;
+      max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    /* ─── EMPTY STATE ─── */
+    /* ── EMPTY STATE ── */
     .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 32px 16px;
-      gap: 8px;
-      color: var(--text-muted);
-      text-align: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 28px 16px 20px; gap: 10px; text-align: center;
+    }
+    .empty-orb {
+      width: 54px; height: 54px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, rgba(124,58,237,0.25), rgba(79,70,229,0.06));
+      border: 1px solid rgba(124,58,237,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      animation: floatOrb 4s ease-in-out infinite;
+      box-shadow: 0 0 30px rgba(124,58,237,0.1);
+    }
+    @keyframes floatOrb {
+      0%,100% { transform: translateY(0) rotate(0deg); }
+      50%      { transform: translateY(-6px) rotate(3deg); }
+    }
+    .empty-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: -0.01em;
+    }
+    .empty-sub {
+      font-size: 11px; color: var(--text-muted); line-height: 1.5;
     }
 
-    .empty-icon {
-      font-size: 28px;
-      opacity: 0.5;
+    /* ── PROCESSING INDICATOR ── */
+    .processing-bar {
+      height: 2px;
+      background: var(--accent-gradient);
+      background-size: 200% 100%;
+      animation: sweep 1.2s ease-in-out infinite;
+      border-radius: 1px;
+      margin: 0 14px;
+      display: none;
+    }
+    .processing-bar.active { display: block; }
+    @keyframes sweep {
+      0%   { background-position: 200% 0; opacity: 0.6; }
+      50%  { background-position: 0% 0; opacity: 1; }
+      100% { background-position: -200% 0; opacity: 0.6; }
     }
 
-    .empty-text {
-      font-size: 12px;
-      color: var(--text-dim);
-      line-height: 1.5;
-    }
-
-    /* ─── FOOTER ─── */
-    .footer {
-      padding: 8px 16px 14px;
-      text-align: center;
-    }
-
+    /* ── FOOTER ── */
+    .footer { padding: 6px 14px 12px; text-align: center; }
     .footer-text {
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 0.02em;
+      font-size: 9px; color: var(--text-muted);
+      letter-spacing: 0.04em; opacity: 0.7;
     }
   </style>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <div class="header">
-    <div class="header-logo">
-      <span class="logo-icon">🎬</span>
-      <span class="logo-text">CodeCaptions</span>
-    </div>
-    <div class="live-badge live" id="liveBadge">
-      <span class="pulse-dot"></span>
-      <span id="liveLabel">LIVE</span>
-    </div>
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon-wrap">🎬</div>
+    <span class="logo-text">CodeCaptions</span>
   </div>
-
-  <!-- CURRENT CAPTION CARD -->
-  <div class="current-caption-section">
-    <div class="caption-card" id="captionCard">
-      <div class="caption-text empty" id="captionText">Watching for changes…</div>
-      <div class="caption-meta" id="captionMeta" style="display: none;">
-        <span class="caption-filename" id="captionFilename"></span>
-        <span class="caption-time" id="captionTime"></span>
-      </div>
-    </div>
+  <div class="live-badge live" id="liveBadge">
+    <span class="pulse-dot"></span>
+    <span id="liveLabel">LIVE</span>
   </div>
+</div>
 
-  <!-- CONTROLS -->
-  <div class="controls-row">
-    <button class="btn btn-primary" id="toggleBtn" onclick="handleToggle()">
-      ⏸ Pause
-    </button>
-    <button class="btn btn-danger" onclick="handleClear()">
-      🗑 Clear
-    </button>
-    <button class="btn" onclick="handleSettings()">
-      ⚙ Settings
-    </button>
-  </div>
+<!-- PROCESSING BAR -->
+<div class="processing-bar" id="processingBar"></div>
 
-  <div class="divider"></div>
-
-  <!-- HISTORY -->
-  <div class="history-section">
-    <div class="history-header">
-      <span class="history-title">Recent Activity</span>
-      <span class="count-badge" id="countBadge">0</span>
-    </div>
-    <div class="history-list" id="historyList">
-      <div class="empty-state">
-        <span class="empty-icon">✨</span>
-        <span class="empty-text">No captions yet.<br>Start coding!</span>
-      </div>
+<!-- CAPTION CARD -->
+<div class="caption-section">
+  <div class="caption-card" id="captionCard">
+    <div class="caption-label">NOW PLAYING</div>
+    <div class="caption-text empty" id="captionText">Watching for changes…</div>
+    <div class="caption-meta" id="captionMeta" style="display:none">
+      <span class="caption-filename" id="captionFilename"></span>
+      <span class="caption-time" id="captionTime"></span>
     </div>
   </div>
+</div>
 
-  <!-- FOOTER -->
-  <div class="footer">
-    <span class="footer-text">Analyzing observable code changes only.</span>
+<!-- STATS ROW -->
+<div class="stats-row">
+  <div class="stat-chip stat-chip-accent">
+    <span class="stat-val" id="totalStat">0</span>
+    <span>captions</span>
   </div>
+  <div class="stat-chip" id="sessionStat" style="display:none">
+    <span class="stat-val" id="sessionVal">0</span>
+    <span>this session</span>
+  </div>
+</div>
 
-  <script>
-    const vscode = acquireVsCodeApi();
-    let isEnabled = true;
-    let lastTimestamp = null;
+<!-- CONTROLS -->
+<div class="controls-row">
+  <button class="btn btn-primary" id="toggleBtn" onclick="handleToggle()">
+    <span class="btn-icon">⏸</span><span>Pause</span>
+  </button>
+  <button class="btn btn-danger" onclick="handleClear()">
+    <span class="btn-icon">🗑</span><span>Clear</span>
+  </button>
+  <button class="btn" onclick="handleSettings()">
+    <span class="btn-icon">⚙</span><span>Settings</span>
+  </button>
+</div>
 
-    function handleToggle() {
-      vscode.postMessage({ type: isEnabled ? 'pause' : 'resume' });
-    }
+<div class="divider"></div>
 
-    function handleClear() {
-      vscode.postMessage({ type: 'clear' });
-    }
+<!-- HISTORY -->
+<div class="history-section">
+  <div class="history-header">
+    <span class="history-title">Recent Activity</span>
+    <span class="count-badge" id="countBadge">0</span>
+  </div>
+  <div class="history-list" id="historyList">
+    <div class="empty-state">
+      <div class="empty-orb">✨</div>
+      <div class="empty-title">No captions yet</div>
+      <div class="empty-sub">Start coding with your AI<br>assistant to see live subtitles</div>
+    </div>
+  </div>
+</div>
 
-    function handleSettings() {
-      vscode.postMessage({ type: 'openSettings' });
-    }
+<!-- FOOTER -->
+<div class="footer">
+  <span class="footer-text">Analyzing observable code changes only • Never reads AI chat</span>
+</div>
 
-    function formatTime(date) {
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    }
+<script>
+  const vscode = acquireVsCodeApi();
+  let isEnabled = true;
+  let lastTimestamp = null;
+  let sessionCount = 0;
+  let timeInterval = null;
+  let processingTimeout = null;
 
-    function formatRelativeTime(date) {
-      const diffMs = Date.now() - new Date(date).getTime();
-      if (diffMs < 5000) return 'just now';
-      if (diffMs < 60000) return Math.floor(diffMs / 1000) + 's ago';
-      if (diffMs < 3600000) return Math.floor(diffMs / 60000) + 'm ago';
-      return Math.floor(diffMs / 3600000) + 'h ago';
-    }
+  /* ── Helpers ── */
+  function handleToggle() { vscode.postMessage({ type: isEnabled ? 'pause' : 'resume' }); }
+  function handleClear()  { vscode.postMessage({ type: 'clear' }); sessionCount = 0; updateSessionStat(); }
+  function handleSettings(){ vscode.postMessage({ type: 'openSettings' }); }
 
-    function truncate(str, maxLen) {
-      if (!str) return '';
-      return str.length > maxLen ? str.slice(0, maxLen) + '…' : str;
-    }
+  function formatTime(date) {
+    return new Date(date).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
+  }
+  function formatRelative(date) {
+    const d = Date.now() - new Date(date).getTime();
+    if (d < 5000)   return 'just now';
+    if (d < 60000)  return Math.floor(d/1000) + 's ago';
+    if (d < 3600000)return Math.floor(d/60000) + 'm ago';
+    return Math.floor(d/3600000) + 'h ago';
+  }
+  function trunc(s, n) { return s && s.length > n ? s.slice(0,n)+'…' : (s||''); }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
-    function renderHistory(history) {
-      const list = document.getElementById('historyList');
-      const badge = document.getElementById('countBadge');
-      badge.textContent = history.length;
+  /* ── Processing bar ── */
+  function showProcessing() {
+    document.getElementById('processingBar').classList.add('active');
+    clearTimeout(processingTimeout);
+    processingTimeout = setTimeout(() => {
+      document.getElementById('processingBar').classList.remove('active');
+    }, 3000);
+  }
+  function hideProcessing() {
+    clearTimeout(processingTimeout);
+    document.getElementById('processingBar').classList.remove('active');
+  }
 
-      if (!history || history.length === 0) {
-        list.innerHTML = \`
-          <div class="empty-state">
-            <span class="empty-icon">✨</span>
-            <span class="empty-text">No captions yet.<br>Start coding!</span>
-          </div>\`;
-        return;
-      }
+  /* ── Session stat ── */
+  function updateSessionStat() {
+    const el = document.getElementById('sessionStat');
+    const val = document.getElementById('sessionVal');
+    if (sessionCount > 0) { el.style.display = 'flex'; val.textContent = sessionCount; }
+    else { el.style.display = 'none'; }
+  }
 
-      list.innerHTML = history.map((entry, i) => {
-        const time = formatTime(new Date(entry.timestamp));
-        const caption = entry.caption || '';
-        const filename = truncate(entry.filename, 15);
-        const delay = i === 0 ? '0ms' : \`\${Math.min(i * 30, 200)}ms\`;
-        return \`
-          <div class="history-item" style="animation-delay: \${delay}">
-            <span class="time-pill">\${time}</span>
-            <span class="item-caption" title="\${caption}">\${caption}</span>
-            <span class="file-badge" title="\${entry.filename}">\${filename}</span>
-          </div>\`;
-      }).join('');
-    }
-
-    function updateCurrentCaption(caption, filename) {
-      const card = document.getElementById('captionCard');
-      const text = document.getElementById('captionText');
-      const meta = document.getElementById('captionMeta');
-      const filenameEl = document.getElementById('captionFilename');
-      const timeEl = document.getElementById('captionTime');
-
-      if (caption) {
-        text.textContent = caption;
-        text.classList.remove('empty');
-        filenameEl.textContent = filename || '';
-        lastTimestamp = new Date();
-        timeEl.textContent = 'just now';
-        meta.style.display = 'flex';
-
-        // Animate in
-        card.classList.remove('animate-in');
-        void card.offsetWidth; // reflow
-        card.classList.add('animate-in');
-
-        // Update relative time every second
-        clearInterval(window._timeInterval);
-        window._timeInterval = setInterval(() => {
-          if (lastTimestamp) {
-            timeEl.textContent = formatRelativeTime(lastTimestamp);
-          }
-        }, 1000);
+  /* ── Caption card ── */
+  function typewriterSet(el, text) {
+    el.innerHTML = '';
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    el.appendChild(cursor);
+    const iv = setInterval(() => {
+      if (i < text.length) {
+        el.insertBefore(document.createTextNode(text[i]), cursor);
+        i++;
       } else {
-        text.textContent = 'Watching for changes…';
-        text.classList.add('empty');
-        meta.style.display = 'none';
+        clearInterval(iv);
+        setTimeout(() => cursor.remove(), 800);
       }
+    }, 28);
+  }
+
+  function updateCurrentCaption(caption, filename) {
+    const card   = document.getElementById('captionCard');
+    const text   = document.getElementById('captionText');
+    const meta   = document.getElementById('captionMeta');
+    const fnEl   = document.getElementById('captionFilename');
+    const timeEl = document.getElementById('captionTime');
+
+    hideProcessing();
+
+    if (caption) {
+      text.classList.remove('empty');
+      card.classList.add('has-caption');
+      typewriterSet(text, caption);
+      fnEl.textContent = filename || '';
+      lastTimestamp = new Date();
+      timeEl.textContent = 'just now';
+      meta.style.display = 'flex';
+
+      // Animate card
+      card.classList.remove('animate-in','shimmer');
+      void card.offsetWidth;
+      card.classList.add('animate-in','shimmer');
+
+      sessionCount++;
+      updateSessionStat();
+
+      // Tick relative time
+      clearInterval(timeInterval);
+      timeInterval = setInterval(() => {
+        if (lastTimestamp) timeEl.textContent = formatRelative(lastTimestamp);
+      }, 3000);
+    } else {
+      text.innerHTML = 'Watching for changes…';
+      text.classList.add('empty');
+      card.classList.remove('has-caption');
+      meta.style.display = 'none';
+    }
+  }
+
+  /* ── History list ── */
+  function renderHistory(history) {
+    const list  = document.getElementById('historyList');
+    const badge = document.getElementById('countBadge');
+    const total = document.getElementById('totalStat');
+
+    badge.textContent = history.length;
+    total.textContent = history.length;
+
+    if (!history || history.length === 0) {
+      list.innerHTML = \`
+        <div class="empty-state">
+          <div class="empty-orb">✨</div>
+          <div class="empty-title">No captions yet</div>
+          <div class="empty-sub">Start coding with your AI<br>assistant to see live subtitles</div>
+        </div>\`;
+      return;
     }
 
-    function updateLiveBadge(enabled) {
-      const badge = document.getElementById('liveBadge');
-      const label = document.getElementById('liveLabel');
-      const btn = document.getElementById('toggleBtn');
+    list.innerHTML = history.map((entry, i) => {
+      const delay = Math.min(i * 25, 250);
+      return \`<div class="history-item" style="animation-delay:\${delay}ms">
+        <span class="time-pill">\${formatTime(entry.timestamp)}</span>
+        <span class="item-caption" title="\${esc(entry.caption)}">\${esc(entry.caption)}</span>
+        <span class="file-badge" title="\${esc(entry.filename)}">\${esc(trunc(entry.filename, 14))}</span>
+      </div>\`;
+    }).join('');
+  }
 
-      if (enabled) {
-        badge.className = 'live-badge live';
-        label.textContent = 'LIVE';
-        btn.textContent = '⏸ Pause';
-      } else {
-        badge.className = 'live-badge paused';
-        label.textContent = 'PAUSED';
-        btn.textContent = '▶ Resume';
-      }
+  /* ── Live badge & toggle ── */
+  function updateLiveBadge(enabled) {
+    const badge  = document.getElementById('liveBadge');
+    const label  = document.getElementById('liveLabel');
+    const btn    = document.getElementById('toggleBtn');
+    if (enabled) {
+      badge.className = 'live-badge live';
+      label.textContent = 'LIVE';
+      btn.innerHTML = '<span class="btn-icon">⏸</span><span>Pause</span>';
+    } else {
+      badge.className = 'live-badge paused';
+      label.textContent = 'PAUSED';
+      btn.innerHTML = '<span class="btn-icon">▶</span><span>Resume</span>';
+    }
+  }
+
+  /* ── Messages from extension ── */
+  window.addEventListener('message', (event) => {
+    const msg = event.data;
+
+    if (msg.type === 'update') {
+      if (msg.caption) updateCurrentCaption(msg.caption, msg.filename);
+      renderHistory(msg.history || []);
     }
 
-    window.addEventListener('message', (event) => {
-      const message = event.data;
+    if (msg.type === 'stateChange') {
+      isEnabled = msg.enabled;
+      updateLiveBadge(isEnabled);
+    }
 
-      if (message.type === 'update') {
-        if (message.caption) {
-          updateCurrentCaption(message.caption, message.filename);
-        }
-        renderHistory(message.history || []);
-      }
-
-      if (message.type === 'stateChange') {
-        isEnabled = message.enabled;
-        updateLiveBadge(isEnabled);
-      }
-    });
-  </script>
+    if (msg.type === 'processing') {
+      showProcessing();
+    }
+  });
+</script>
 </body>
 </html>`;
   }
