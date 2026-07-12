@@ -75,6 +75,8 @@ export function activate(context: vscode.ExtensionContext) {
       if (enabled) {
         timeline.add(caption, change.filename);
         historyView.update(caption, change.filename);
+        // Show as a transient toast on screen
+        vscode.window.showInformationMessage(`🎬 CC: ${caption} (${change.filename})`);
       }
     } catch (err) {
       // Swallow silently — never crash the host

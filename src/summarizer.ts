@@ -86,6 +86,7 @@ export class Summarizer {
     if (!response.ok) {
       const err = await response.text();
       this.outputChannel.appendLine(`[Summarizer] Gemini error ${response.status}: ${err}`);
+      vscode.window.showErrorMessage(`CodeCaptions Gemini Error (${response.status}): ${err.substring(0, 150)}`);
       return null;
     }
 
@@ -122,6 +123,7 @@ export class Summarizer {
     if (!response.ok) {
       const err = await response.text();
       this.outputChannel.appendLine(`[Summarizer] Claude error ${response.status}: ${err}`);
+      vscode.window.showErrorMessage(`CodeCaptions Claude Error (${response.status}): ${err.substring(0, 150)}`);
       return null;
     }
 
@@ -158,6 +160,7 @@ export class Summarizer {
     if (!response.ok) {
       const err = await response.text();
       this.outputChannel.appendLine(`[Summarizer] OpenAI error ${response.status}: ${err}`);
+      vscode.window.showErrorMessage(`CodeCaptions OpenAI Error (${response.status}): ${err.substring(0, 150)}`);
       return null;
     }
 
@@ -186,6 +189,7 @@ export class Summarizer {
     if (!response.ok) {
       const err = await response.text();
       this.outputChannel.appendLine(`[Summarizer] Ollama error ${response.status}: ${err}`);
+      vscode.window.showErrorMessage(`CodeCaptions Ollama Error (${response.status}): ${err.substring(0, 150)}`);
       return null;
     }
 
