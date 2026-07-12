@@ -4,11 +4,14 @@
   "description": "Closed captions for AI coding assistants. Live subtitles from code changes.",
   "version": "0.1.0",
   "publisher": "codecaptions",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akvinayaktiwari/CodeCaptions.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": ["Other", "AI"],
-  "icon": "icon.png",
   "activationEvents": ["onStartupFinished"],
   "main": "./dist/extension.js",
   "contributes": {
